@@ -35,3 +35,19 @@ def create_article(payload: ArticleCreate):
     return article
 
 
+from fastapi import Query
+from app.services.db import list_articles
+
+@router.get("/api/articles")
+def list_articles_api(limit: int = Query(20, ge=1, le=50), cursor: str | None = None):
+    """
+    מחזיר רשימת כתבות ראשונה/הבא בתור עם פג'ינציה (cursor).
+    GET /api/articles?limit=20&cursor=<last_id>
+    """
+    items, next_cursor = list_articles(limit=limit, start_after=cursor)
+    return {
+        "items": [i.model_dump(mode="json") for i in items],
+        "next_cursor": next_cursor
+    }
+
+

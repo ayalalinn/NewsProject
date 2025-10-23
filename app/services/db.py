@@ -70,3 +70,40 @@ def save_article(payload: ArticleCreate) -> Article:
 
     doc_ref.set(to_store)
     return art
+
+from typing import List, Tuple
+
+def list_articles(limit: int = 20, start_after: str | None = None) -> Tuple[List[Article], str | None]:
+    """
+    מחזיר עד 'limit' כתבות, ממוינות לפי published_at יורד.
+    start_after: מזהה מסמך להתחיל אחריו (לשימוש בפג'ינציה).
+    מחזיר (רשימת כתבות, next_cursor) – אם יש עוד עמוד.
+    """
+    _ensure_init()
+    query = (
+        _db.collection(FIRESTORE_COLLECTION)
+        .order_by("published_at", direction=firestore.Query.DESCENDING)
+        .limit(limit + 1)
+    )
+    if start_after:
+        # נטען את המסמך שממנו נמשיך
+        last_doc = _db.collection(FIRESTORE_COLLECTION).document(start_after).get()
+        if last_doc.exists:
+            query = query.start_after(last_doc)
+
+    snaps = query.stream()
+    docs = list(snaps)
+    next_cursor = None
+    if len(docs) > limit:
+        next_cursor = docs[-1].id
+        docs = docs[:-1]
+
+    items: List[Article] = []
+    for d in docs:
+        data = d.to_dict() or {}
+        data["id"] = d.id
+        try:
+            items.append(Article(**data))
+        except ValidationError:
+            continue
+    return items, next_cursor

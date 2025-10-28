@@ -8,3 +8,7 @@ firebase-admin==7.1.0
 httpx[http2]==0.28.1
 requests==2.32.3
 
+transformers
+torch
+aiokafka
+cloudinary

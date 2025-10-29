@@ -31,3 +31,26 @@ gradio_app = build_ui()
 app = gr.mount_gradio_app(app, gradio_app, path="/article")
 
 
+from fastapi import Request
+from fastapi.responses import StreamingResponse
+from app.realtime import notifier, sse_events
+
+@app.get("/stream")
+def stream(request: Request):
+    q = notifier.subscribe()
+    return StreamingResponse(sse_events(q), media_type="text/event-stream")
+#נתיב לדף HTML
+from fastapi.responses import HTMLResponse
+
+from fastapi.responses import HTMLResponse
+
+from pathlib import Path
+from fastapi.responses import HTMLResponse
+
+LIVE_HTML = Path(__file__).resolve().parent / "templates" / "live.html"
+
+@app.get("/live", response_class=HTMLResponse)
+def live_page():
+    return LIVE_HTML.read_text(encoding="utf-8")
+
+

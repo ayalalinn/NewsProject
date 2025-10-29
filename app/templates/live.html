@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="he">
+<meta charset="UTF-8">
+<title>פיד חדשות בזמן אמת 📰</title>
+<style>
+body { font-family: Arial; direction: rtl; margin: 30px; background: #f8f9fa; }
+.card { background: white; margin: 12px 0; padding: 16px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+h2 { color: #333; }
+.time { color: gray; font-size: 14px; }
+</style>
+<body>
+<h2>פיד חדשות בזמן אמת</h2>
+<div id="feed"></div>
+
+<script>
+const feed = document.getElementById("feed");
+const es = new EventSource("/stream");
+
+// הפונקציה שמייצרת את תוכן הכרטיס
+function renderCard(article) {
+  return `
+    <h3>${article.title}</h3>
+    <div class="time">${article.published_at}</div>
+    <div style="margin-top:8px">${article.content}</div>
+    <div style="margin-top:10px">
+      <a href="/article?id=${article.id}" target="_blank">📄 פתח כתבה</a>
+    </div>
+  `;
+}
+
+// מאזין לכל ידיעה חדשה / מעודכנת
+es.onmessage = async (e) => {
+  // ממיר את הנתונים
+  const dataText = typeof e.data === "string" ? e.data.replace(/'/g, '"') : e.data;
+  let msg; 
+  try { msg = JSON.parse(dataText); } catch { return; }
+  if (!msg?.news_id) return;
+
+  // שליפה מה-API
+  const res = await fetch(`/api/article/${msg.news_id}`);
+  if (!res.ok) return;
+  const article = await res.json();
+
+  // מחפש אם כבר קיים כרטיס לאותה כתבה (לפי id)
+  let card = document.getElementById(`card-${article.id}`);
+
+  if (card) {
+    // אם קיים — נעדכן את התוכן במקום ליצור חדש
+    card.innerHTML = renderCard(article);
+    card.style.transition = "box-shadow 0.3s";
+    card.style.boxShadow = "0 0 0 3px #ffe58f";
+    setTimeout(() => card.style.boxShadow = "", 600);
+  } else {
+    // אם לא קיים — נוסיף כרטיס חדש
+    card = document.createElement("div");
+    card.className = "card";
+    card.id = `card-${article.id}`;
+    card.innerHTML = renderCard(article);
+    feed.prepend(card);
+  }
+};
+</script>
+
+
+
+</body>
+</html>

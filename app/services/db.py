@@ -1,5 +1,5 @@
 # app/services/db.py
-from typing import Optional
+from typing import Optional, List, Tuple
 from uuid import uuid4
 import os
 
@@ -25,7 +25,6 @@ def _ensure_init():
     if not cred_path:
         raise RuntimeError("GOOGLE_APPLICATION_CREDENTIALS is not set (check your .env)")
 
-    # תומך גם בנתיב יחסי (./secrets/...) וגם במלא
     if not os.path.exists(cred_path):
         alt = os.path.abspath(cred_path)
         if not os.path.exists(alt):
@@ -33,14 +32,11 @@ def _ensure_init():
         cred_path = alt
 
     try:
-        # אם כבר יש אפליקציה מאותחלת (עקב --reload), נשתמש בה
         app = firebase_admin.get_app()
     except ValueError:
-        # אין אפליקציה — נאתחל חדשה
         cred = credentials.Certificate(cred_path)
         app = firebase_admin.initialize_app(cred)
 
-    # קבלת לקוח Firestore מתוך האפליקציה
     _db = firestore.client(app)
     _initialized = True
 
@@ -60,18 +56,34 @@ def get_article(article_id: str) -> Optional[Article]:
 
 
 def save_article(payload: ArticleCreate) -> Article:
+    """
+    UPSERT:
+    - אם יש external_id ונמצא מסמך קיים עם אותו external_id -> נעדכן אותו.
+    - אחרת ניצור מסמך חדש (או נשתמש ב-id שהועבר).
+    """
     _ensure_init()
-    aid = payload.id or str(uuid4())
-    art = Article(id=aid, **payload.model_dump(exclude={"id"}))
-    doc_ref = _db.collection(FIRESTORE_COLLECTION).document(aid)
-    
-    to_store = art.model_dump(mode="json", exclude={"id"})
-#            ^^^^^^^^^^^^^  חשוב! מבקש ממודל להחזיר טיפוסים JSON (מחרוזות במקום HttpUrl)
 
+    doc_id: Optional[str] = None
+
+    if payload.external_id:
+        matches = (
+            _db.collection(FIRESTORE_COLLECTION)
+               .where("external_id", "==", payload.external_id)
+               .limit(1)
+               .get()
+        )
+        if matches:
+            doc_id = matches[0].id
+
+    if not doc_id:
+        doc_id = payload.id or str(uuid4())
+
+    art = Article(id=doc_id, **payload.model_dump(exclude={"id"}))
+    doc_ref = _db.collection(FIRESTORE_COLLECTION).document(doc_id)
+    to_store = art.model_dump(mode="json", exclude={"id"})
     doc_ref.set(to_store)
     return art
 
-from typing import List, Tuple
 
 def list_articles(limit: int = 20, start_after: str | None = None) -> Tuple[List[Article], str | None]:
     """
@@ -86,13 +98,11 @@ def list_articles(limit: int = 20, start_after: str | None = None) -> Tuple[List
         .limit(limit + 1)
     )
     if start_after:
-        # נטען את המסמך שממנו נמשיך
         last_doc = _db.collection(FIRESTORE_COLLECTION).document(start_after).get()
         if last_doc.exists:
             query = query.start_after(last_doc)
 
-    snaps = query.stream()
-    docs = list(snaps)
+    docs = list(query.stream())
     next_cursor = None
     if len(docs) > limit:
         next_cursor = docs[-1].id

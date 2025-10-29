@@ -1,22 +1,19 @@
 from pydantic import BaseModel, HttpUrl
-from typing import List
+from typing import List, Optional
 
-
-#מגדיר מודל שמוודא את סוג הנתונים כדי שידיעה חדשתית תתקבל במבנה מסוים ומוסכם
-class Article(BaseModel):           
+class Article(BaseModel):
     id: str
     title: str
     published_at: str
     content: str
-    category: str            # Zero-shot category (ימולא בהמשך ע"י שירות NLP)
-    entities: List[str]      # NER tags (ימולא בהמשך ע"י שירות NLP)
+    category: str               # Zero-shot category
+    entities: List[str]         # NER tags
     image_url: HttpUrl
     source_url: HttpUrl
-from typing import Optional
-
+    external_id: Optional[str] = None
 
 class ArticleCreate(BaseModel):
-    id: Optional[str] = None   # אפשר לשלוח או שנייצר לבד
+    id: Optional[str] = None    # אפשר לשלוח או שנייצר UUID
     title: str
     published_at: str
     content: str
@@ -24,3 +21,4 @@ class ArticleCreate(BaseModel):
     entities: List[str]
     image_url: HttpUrl
     source_url: HttpUrl
+    external_id: Optional[str] = None

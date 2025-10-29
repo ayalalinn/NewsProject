@@ -18,7 +18,7 @@ CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
 
 # MCP (AI Agents / Coordination)
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8001")
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:8001")
 
 # General
 PROJECT_NAME = "Realtime News Agents"
